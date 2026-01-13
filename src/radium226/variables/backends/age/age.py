@@ -1,7 +1,7 @@
 from pathlib import Path
 from contextlib import contextmanager
 from subprocess import run
-from typing import Generator
+from typing import Generator, TypeAlias
 from loguru import logger
 from textwrap import dedent
 
@@ -13,7 +13,7 @@ from .passphrase import find_passphrase
 
 
 
-type Config = KeyPair | Passphrase
+Config: TypeAlias = KeyPair | Passphrase
 
 
 class Age():

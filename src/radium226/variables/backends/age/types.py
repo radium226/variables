@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+from typing import TypeAlias
 
 
-type PrivateKey = str
+PrivateKey: TypeAlias = str
 
 
-type PublicKey = str
+PublicKey: TypeAlias = str
 
 
 @dataclass(frozen=True, eq=True)
@@ -14,4 +15,4 @@ class KeyPair:
 
 
 
-type Passphrase = str
+Passphrase: TypeAlias = str

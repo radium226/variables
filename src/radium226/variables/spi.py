@@ -1,4 +1,4 @@
-from typing import Protocol, Callable, ContextManager, Any, cast
+from typing import Protocol, Callable, ContextManager, Any, cast, TypeAlias, TypeVar, Generic
 from importlib.metadata import entry_points, EntryPoint
 from importlib import import_module
 from dataclasses import dataclass
@@ -12,20 +12,20 @@ class Config(Protocol):
     pass
 
 
-type ParseConfig[T: Config] = Callable[[dict[str, str]], T]
+T = TypeVar('T', bound=Config)
 
+ParseConfig: TypeAlias = Callable[[dict[str, str]], T]
 
-type CreateBackend[T: Config] = Callable[[T], ContextManager[Backend]]
+CreateBackend: TypeAlias = Callable[[T], ContextManager['Backend']]
 
-
-type Name = str
+Name: TypeAlias = str
 
 @dataclass
-class Factory[T: Config]:
+class Factory(Generic[T]):
 
     name: Name
-    parse_config: ParseConfig[T]
-    create_backend: CreateBackend[T]
+    parse_config: Callable[[dict[str, str]], T]
+    create_backend: Callable[[T], ContextManager['Backend']]
 
 
 class Backend(Protocol):
