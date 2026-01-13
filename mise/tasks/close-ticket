@@ -1,0 +1,61 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = [
+#   "click",
+#   "loguru",
+# ]
+# ///
+
+import re
+from click import command
+from subprocess import run
+from loguru import logger
+
+
+@command()
+def main():
+    process = run(
+        ["git", "branch", "--show-current"],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    stdout = process.stdout
+    assert stdout is not None
+    branch_name = stdout.strip()
+    logger.debug("branch_name={}", branch_name)
+
+    match = re.match(r'^ticket-(\d+)', branch_name)
+    assert match is not None
+    ticket_id = match.group(1)
+    logger.debug("ticket_id={}", ticket_id)
+
+    process = run(
+        ["hut", "todo", "ticket", "show", ticket_id],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    stdout = process.stdout
+    assert stdout is not None
+    lines = stdout.splitlines()
+    assert len(lines) > 0
+    [ticket_title, *_] = lines
+    logger.debug("ticket_title={}", ticket_title)
+
+    logger.info("Merging branch {} into main", branch_name)
+    run(["git", "checkout", "main"], check=True)
+    run(["git", "merge", "--squash", branch_name], check=True)
+    run(["git", "commit", "-m", f"[#{ticket_id}] {ticket_title}"], check=True)
+    run(["git", "push"], check=True)
+
+    logger.info("Closing ticket #{}", ticket_id)
+    run(["hut", "todo", "ticket", "update-status", ticket_id, "--status", "RESOLVED"], check=True)
+    
+    logger.info("Deleting branch {}", branch_name)
+    run(["git", "branch", "-d", branch_name], check=True)
+    run(["git", "push", "origin", "--delete", branch_name], check=True)
+
+
+if __name__ == "__main__":
+    main()

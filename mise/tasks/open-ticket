@@ -1,0 +1,53 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = [
+#   "click",
+#   "loguru",
+# ]
+# ///
+
+from loguru import logger
+import re
+from click import command, argument
+from subprocess import run
+import sys
+
+
+def slugify(text):
+    """Convert text to a slug suitable for branch names."""
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    text = re.sub(r'-+', '-', text)
+    return text.strip('-')
+
+
+@command()
+@argument("title", type=str)
+def main(title: str):
+    logger.debug("Creating ticket with title: {}", title)
+    process = run(
+        ["hut", "todo", "ticket", "create"],
+        check=True,
+        text=True,
+        capture_output=True,
+        input=f"{title}\n",
+    )
+    stderr = process.stderr
+    assert stderr is not None
+    logger.debug("stderr={}", stderr)
+
+    match = re.search(r'#(\d+)', stderr)
+    assert match is not None
+    ticket_id = match.group(1)
+    logger.debug("ticket_id={}", ticket_id)
+
+    branch_name = f"ticket-{ticket_id}-{slugify(title)}"
+    logger.debug("branch_name={}", branch_name)
+    run(
+        ["git", "checkout", "-b", branch_name], 
+        check=True,
+    )
+
+
+if __name__ == "__main__":
+    main()
