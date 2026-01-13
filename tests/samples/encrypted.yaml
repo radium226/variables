@@ -1,0 +1,13 @@
+variables:
+- name: FOO
+  type: text
+  value: foo
+  visibility: plain
+- name: BAR
+  type: text
+  value: encrypted:YmFy
+  visibility: secret
+- name: CONFIG
+  type: file
+  value: encrypted:ewogICJzZXR0aW5nMSI6ICJ2YWx1ZTEiLAogICJzZXR0aW5nMiI6ICJ2YWx1ZTIiCn0K
+  visibility: secret

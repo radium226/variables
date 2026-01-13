@@ -1,0 +1,15 @@
+#!/usr/bin/env expect
+
+set timeout 5
+set argv [lassign $argv passphrase]
+spawn age {*}$argv
+
+expect "Enter*"
+send "$passphrase\r"
+
+expect "Confirm*"
+send "$passphrase\r"
+
+send "\004"
+
+expect eof

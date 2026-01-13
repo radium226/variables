@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -euEo pipefail
+
+main()
+{
+    log "Checking code style and type hints..."
+    uv run ruff check "./src"
+    uv run ruff check "./tests"
+    
+    log "Checking type hints..."
+    [ "$( find "./src" -name "*.py" -print -quit )" ] && uv run mypy "./src"
+    [ "$( find "./tests" -name "*.py" -print -quit )" ] && uv run mypy "./tests"
+
+    log "Running tests..."
+    uv run pytest --suppress-no-test-exit-code "./tests"
+}
+
+log()
+{
+    echo "${*}" >&2
+}
+
+main "${@}"

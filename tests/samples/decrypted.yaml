@@ -1,0 +1,13 @@
+variables:
+- name: FOO
+  type: text
+  value: foo
+  visibility: plain
+- name: BAR
+  type: text
+  value: bar
+  visibility: secret
+- name: CONFIG
+  type: file
+  value: "{\n  \"setting1\": \"value1\",\n  \"setting2\": \"value2\"\n}\n"
+  visibility: secret
