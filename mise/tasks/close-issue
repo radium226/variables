@@ -1,0 +1,101 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = []
+# ///
+import re
+import subprocess
+import sys
+
+
+def run_command(cmd, capture=True, check=True):
+    """Run a shell command and return the output."""
+    result = subprocess.run(
+        cmd,
+        capture_output=capture,
+        text=True,
+        check=check
+    )
+    return result.stdout.strip() if capture else None
+
+
+def main():
+    tracker = "~radium226/variables"
+
+    # Get current branch name
+    try:
+        current_branch = run_command(["git", "branch", "--show-current"])
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to get current branch: {e}")
+        sys.exit(1)
+
+    # Extract issue number from branch name (format: issue-{number}-{title})
+    match = re.match(r'^issue-(\d+)', current_branch)
+    if not match:
+        print("Error: Not on an issue branch (expected format: issue-{number}-{title})")
+        sys.exit(1)
+
+    issue_num = match.group(1)
+    print(f"Closing issue #{issue_num} and merging branch {current_branch}")
+
+    # Get the main branch name (default to 'main')
+    main_branch = sys.argv[1] if len(sys.argv) > 1 else "main"
+
+    # Switch to main branch
+    try:
+        subprocess.run(["git", "checkout", main_branch], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to checkout {main_branch}: {e}")
+        sys.exit(1)
+
+    # Merge with squash
+    print(f"Squashing and merging {current_branch} into {main_branch}")
+    try:
+        subprocess.run(["git", "merge", "--squash", current_branch], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to merge: {e}")
+        sys.exit(1)
+
+    # Get the first commit message from the branch
+    try:
+        first_msg = run_command([
+            "git", "log", "--format=%B", "--reverse",
+            f"{main_branch}..{current_branch}"
+        ])
+        first_msg = first_msg.split('\n')[0] if first_msg else "Merge changes"
+    except subprocess.CalledProcessError:
+        first_msg = "Merge changes"
+
+    # Commit the squashed changes
+    commit_msg = f"[#{issue_num}] {first_msg}"
+    try:
+        subprocess.run(["git", "commit", "-m", commit_msg], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to commit: {e}")
+        sys.exit(1)
+
+    # Close the issue using hut
+    print(f"Closing issue #{issue_num}")
+    try:
+        subprocess.run([
+            "hut", "todo", "update",
+            "--tracker", tracker,
+            "--status", "closed",
+            f"#{issue_num}"
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to close issue: {e}")
+        sys.exit(1)
+
+    # Delete the merged branch
+    print(f"Deleting branch {current_branch}")
+    try:
+        subprocess.run(["git", "branch", "-D", current_branch], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to delete branch: {e}")
+        sys.exit(1)
+
+    print(f"Successfully closed issue #{issue_num} and merged to {main_branch}")
+
+
+if __name__ == "__main__":
+    main()
