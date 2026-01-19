@@ -26,6 +26,7 @@ dev = [
     "pytest-custom-exit-code>=0.3.0",
     "ruff>=0.13.0",
     "types-pyyaml>=6.0.12.20250915",
+    "vulture>=2.14",
 ]
 
 [project.scripts]
@@ -62,6 +63,10 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 
+
+[tool.vulture]
+paths = ["src"]
+min_confidence = 80
 
 [project.entry-points."radium226.variables.backend"]
 dummy = "radium226.variables.backends.dummy"
