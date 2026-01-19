@@ -190,6 +190,7 @@ def test_cli_set_command() -> None:
 
         # Run set command to add new variable
         result = runner.invoke(app, [
+            "-b", "dummy",
             "set",
             "-v", str(variables_file),
             "NEW_VAR",
@@ -224,6 +225,7 @@ def test_cli_set_command_with_stdin() -> None:
         # Run set command with stdin
         secret_value = "my-secret-password"
         result = runner.invoke(app, [
+            "-b", "dummy",
             "set",
             "-v", str(variables_file),
             "PASSWORD",
@@ -258,6 +260,7 @@ def test_cli_set_command_auto_encrypts_secrets(backend: Backend) -> None:
         # Run set command with visibility=secret
         secret_value = "super-secret-password"
         result = runner.invoke(app, [
+            "-b", "dummy",
             "set",
             "-v", str(variables_file),
             "--visibility", "secret",

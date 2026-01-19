@@ -36,7 +36,7 @@ from .spi import (
     "backend_name",
     type=str,
     required=False,
-    default="dummy",
+    default="age",
 )
 @option(
     "--backend-config",
@@ -220,4 +220,45 @@ def set(
         variables = Variables([encrypted_var if v.name == variable_name else v for v in variables])
 
     # Write back to file
+    dump_variables(variables, file_path)
+
+
+@app.command()
+@option(
+    "--to-backend",
+    "-t",
+    "to_backend_name",
+    type=str,
+    default="age",
+    help="Destination backend to encrypt with",
+)
+@option(
+    "--to-backend-config",
+    "to_backend_config",
+    multiple=True,
+    type=KEY_VALUE,
+    callback=to_dict,
+    help="Destination backend configuration (key=value)",
+)
+@argument("file_path", type=Path, required=True)
+@pass_context
+def migrate(
+    context: Context,
+    file_path: Path,
+    to_backend_name: str,
+    to_backend_config: dict[str, str],
+) -> None:
+    from_backend = cast(Backend, context.obj.backend)
+
+    factories = list_factories()
+    to_factory = next((f for f in factories if f.name == to_backend_name), None)
+    assert to_factory is not None, f"Destination backend '{to_backend_name}' not found. Available backends: {[f.name for f in factories]}"
+    to_config = to_factory.parse_config(to_backend_config)
+
+    variables = load_variables(file_path)
+    variables = decrypt_variables(from_backend, variables)
+
+    with to_factory.create_backend(to_config) as to_backend:
+        variables = encrypt_variables(to_backend, variables)
+
     dump_variables(variables, file_path)

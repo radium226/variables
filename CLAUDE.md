@@ -80,7 +80,7 @@ age = "radium226.variables.backends.age"
 
 ### Click CLI Architecture
 
-**Context Management** (app.py:50):
+**Context Management** (app.py:50-63):
 - Root `@group()` command initializes backend in `context.obj.backend`
 - Backend created using `context.with_resource()` for proper lifecycle management
 - Subcommands receive backend via `@pass_context`
@@ -89,7 +89,7 @@ age = "radium226.variables.backends.age"
 - `encrypt <file>`: Encrypt all secret variables in file
 - `decrypt <file>`: Decrypt all encrypted variables in file
 - `exec -v <files> -- <command>`: Execute command with decrypted variables
-- `export -t <target> <file>`: Export to kubectl manifests or bash env
+- `export -t <target> <file>`: Export to kubectl manifests (`kubectl`) or bash env (`bash`)
 - `set -v <file> <name> <value>`: Set/update variable (auto-encrypts if visibility=secret)
 
 ### Type System
