@@ -7,6 +7,7 @@ from .types import (
     ExportTarget,
     VariableVisibility,
     VariableType,
+    VariableNotEncryptedError,
 )
 from .variables import (
     load_variables,
@@ -35,6 +36,7 @@ __all__ = [
     "decrypt_variable",
     "VariableVisibility",
     "VariableType",
+    "VariableNotEncryptedError",
     "encrypt_variables",
     "decrypt_variables",
     "execute_with_variables",

@@ -12,12 +12,13 @@ from jinja2 import Environment
 from jinja2.meta import find_undeclared_variables
 
 from .types import (
-    Variable, 
-    Variables, 
-    VariableVisibility, 
-    Command, 
+    Variable,
+    Variables,
+    VariableVisibility,
+    Command,
     VariableType,
     ExportTarget,
+    VariableNotEncryptedError,
 )
 
 from .files import create_temp_file
@@ -81,11 +82,13 @@ def encrypt_variable(backend: Backend, variable: Variable) -> Variable:
     return variable.with_value(variable_value)
 
 
-def decrypt_variable(backend: Backend, variable: Variable) -> Variable:
+def decrypt_variable(backend: Backend, variable: Variable, *, raise_when_not_encrypted: bool = False) -> Variable:
     if variable.visibility != VariableVisibility.SECRET:
         return variable
-    
+
     if not variable.value.startswith(ENCRYPTION_PREFIX):
+        if raise_when_not_encrypted:
+            raise VariableNotEncryptedError(variable.name)
         logger.warning(f"Variable {variable.name!r} is not encrypted. Skipping decryption.")
         return variable
 
@@ -104,15 +107,15 @@ def encrypt_variables(backend: Backend, variables: Variables) -> Variables:
 
 
 
-def decrypt_variables(backend: Backend, variables: Variables) -> Variables:
+def decrypt_variables(backend: Backend, variables: Variables, *, raise_when_not_encrypted: bool = False) -> Variables:
     def yield_decrypted_variables() -> Generator[Variable, None, None]:
         for variable in variables:
-            decrypted_variable = decrypt_variable(backend, variable)
+            decrypted_variable = decrypt_variable(backend, variable, raise_when_not_encrypted=raise_when_not_encrypted)
             if decrypted_variable.value != "":
                 yield decrypted_variable
             else:
                 logger.warning(f"Variable {variable.name!r} has empty value after decryption. Skipping variable.")
-    
+
     return Variables(yield_decrypted_variables())
 
 

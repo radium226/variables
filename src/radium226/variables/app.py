@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from pathlib import Path
 import sys
 
-from .types import OptionalPrefixAndFilePath, Variable, Variables, Command, ExportTarget, VariableVisibility, VariableType
+from .types import OptionalPrefixAndFilePath, Variable, Variables, Command, ExportTarget, VariableVisibility, VariableType, VariableNotEncryptedError
 from .click import (
     OPTIONAL_PREFIX_AND_FILE_PATH,
     KEY_VALUE,
@@ -262,3 +262,16 @@ def migrate(
         variables = encrypt_variables(to_backend, variables)
 
     dump_variables(variables, file_path)
+
+
+@app.command()
+@argument("file_path", type=Path, required=True)
+@pass_context
+def check(context: Context, file_path: Path) -> None:
+    backend = cast(Backend, context.obj.backend)
+
+    variables = load_variables(file_path)
+    try:
+        decrypt_variables(backend, variables, raise_when_not_encrypted=True)
+    except VariableNotEncryptedError as e:
+        raise SystemExit(f"Check failed: {e}") from e

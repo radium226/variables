@@ -285,3 +285,57 @@ def test_cli_set_command_auto_encrypts_secrets(backend: Backend) -> None:
         decrypted_var = decrypted_vars.by_name("API_KEY")
         assert decrypted_var is not None
         assert decrypted_var.value == secret_value
+
+
+def test_cli_check_command_passes_when_encrypted(backend: Backend) -> None:
+    """Test that check command passes when all secret variables are encrypted."""
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        variables_file = tmpdir_path / "variables.yaml"
+
+        # Create variables with encrypted secret
+        initial_vars = Variables([
+            Variable(name="PLAIN_VAR", value="plain_value", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+            Variable(name="SECRET_VAR", value="secret_value", visibility=VariableVisibility.SECRET, type=VariableType.TEXT),
+        ])
+        # Encrypt the variables
+        encrypted_vars = encrypt_variables(backend, initial_vars)
+        dump_variables(encrypted_vars, variables_file)
+
+        # Run check command
+        result = runner.invoke(app, [
+            "-b", "dummy",
+            "check",
+            str(variables_file)
+        ])
+
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+
+
+def test_cli_check_command_fails_when_not_encrypted() -> None:
+    """Test that check command fails when a secret variable is not encrypted."""
+    runner = CliRunner()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        variables_file = tmpdir_path / "variables.yaml"
+
+        # Create variables with unencrypted secret
+        initial_vars = Variables([
+            Variable(name="PLAIN_VAR", value="plain_value", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+            Variable(name="SECRET_VAR", value="unencrypted_secret", visibility=VariableVisibility.SECRET, type=VariableType.TEXT),
+        ])
+        dump_variables(initial_vars, variables_file)
+
+        # Run check command
+        result = runner.invoke(app, [
+            "-b", "dummy",
+            "check",
+            str(variables_file)
+        ])
+
+        assert result.exit_code != 0, f"Command should have failed but passed: {result.output}"
+        assert "SECRET_VAR" in result.output
+        assert "not encrypted" in result.output

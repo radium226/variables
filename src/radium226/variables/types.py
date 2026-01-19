@@ -91,3 +91,9 @@ class ExportTarget(StrEnum):
 class KeyValue():
     key: str
     value: str
+
+
+class VariableNotEncryptedError(Exception):
+    def __init__(self, variable_name: VariableName) -> None:
+        self.variable_name = variable_name
+        super().__init__(f"Variable {variable_name!r} is not encrypted")
