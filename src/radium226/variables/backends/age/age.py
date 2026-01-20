@@ -4,6 +4,7 @@ from subprocess import run
 from typing import Generator, TypeAlias
 from loguru import logger
 from textwrap import dedent
+import sys
 
 from ...files import create_temp_file
 
@@ -35,7 +36,7 @@ class Age():
                 "-"
             ]
             process = run(command, input=decrypted_value, capture_output=True)
-            print(process.stderr)
+            print(process.stderr, file=sys.stderr)
             return process.stdout
         
         if isinstance(passphrase := self.config, str):
