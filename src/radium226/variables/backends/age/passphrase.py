@@ -16,7 +16,7 @@ def find_passphrase() -> Passphrase | None:
             return passphrase_file_path.read_text(encoding="utf-8")
         
         if ( folder_path / ".git" ).exists():
-            logger.warning("Reached the git root folder without finding a 'variables.key' file.")
+            logger.warning("Reached the git root folder without finding a 'variables.passphrase' file.")
             break
 
         folder_path = folder_path.parent
