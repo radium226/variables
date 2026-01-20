@@ -83,7 +83,7 @@ class Age():
                     "-"
                 ]
                 process = run(command, input=encrypted_value, capture_output=True)
-                print(process.stderr)
+                print(process.stderr, file=sys.stderr)
                 return process.stdout
             
         if isinstance(passphrase := self.config, str):
