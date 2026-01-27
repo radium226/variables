@@ -3,6 +3,7 @@ from pathlib import Path
 from re import Pattern
 import re
 from loguru import logger
+import os
 
 from .types import PrivateKey, PublicKey, KeyPair
 
@@ -50,6 +51,10 @@ def load_key_pair(text_or_file_path: str | Path, /) -> KeyPair:
 
 
 def find_key_pair() -> KeyPair | None:
+    key_pair_content: str | None = os.getenv("VARIABLES_AGE_KEY_PAIR") or os.getenv("VARIABLES_KEY_PAIR")
+    if key_pair_content is not None:
+        return load_key_pair(key_pair_content)
+
     folder_path = Path.cwd()
     while True:
         if (key_pair_file_path := folder_path / "variables.key").exists():

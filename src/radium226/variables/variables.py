@@ -7,9 +7,10 @@ from loguru import logger
 from os import environ
 from contextlib import ExitStack
 from io import StringIO
-import shlex
 from jinja2 import Environment
 from jinja2.meta import find_undeclared_variables
+from base64 import b64encode
+from textwrap import dedent
 
 from .types import (
     Variable,
@@ -156,8 +157,7 @@ def export_variables(variables: Variables, target: ExportTarget, config: dict[st
             variables_for_configmap: list[Variable] = []
             for variable in variables:
                 if variable.type != VariableType.TEXT:
-                    logger.warning(f"Variable {variable.name!r} has type {variable.type!r} which is not supported for kubectl export. Skipping variable.")
-                    continue
+                    logger.warning(f"Variable {variable.name!r} has type {variable.type!r} which is not supported for kubectl export. Using variable as is.")
 
                 if variable.visibility == VariableVisibility.SECRET:
                     variables_for_secret.append(variable)
@@ -173,7 +173,7 @@ def export_variables(variables: Variables, target: ExportTarget, config: dict[st
                 },
                 "data": {
                     variable.name: variable.value
-                    for variable in variables_for_secret
+                    for variable in variables_for_configmap
                 },
             }
 
@@ -200,11 +200,25 @@ def export_variables(variables: Variables, target: ExportTarget, config: dict[st
         case ExportTarget.BASH:
             lines = []
             for variable in variables:
-                if variable.type != VariableType.TEXT:
-                    logger.warning(f"Variable {variable.name!r} has type {variable.type!r} which is not supported for bash export. Skipping variable.")
-                    continue
-                value = shlex.quote(variable.value)
-                line = f'export {variable.name}="{value}"'
+                value = b64encode(variable.value.encode("utf-8")).decode("utf-8")
+                match variable.type:
+                    case VariableType.FILE:
+                        line = dedent("""\
+                            export {variable_name}="$( 
+                            declare file_path
+                            file_path="$( mktemp )"
+                            base64 --decode <<<'{value}' >"${{file_path}}"
+                            echo "${{file_path}}"
+                        )"
+                        """).format(
+                            variable_name=variable.name,
+                            value=value,
+                        )
+                    
+                    case VariableType.TEXT:
+                        line = f'export {variable.name}="$( base64 --decode <<<\'{value}\' )"'
+                
+
                 lines.append(line)
 
             return "\n".join(lines)
