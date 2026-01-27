@@ -140,7 +140,8 @@ def dump_variables(variables: Variables, file_path: Path | None = None) -> str |
             for variable in variables
         ]
     }
-    content = yaml.dump(obj)
+    content = "---\n"
+    content += yaml.dump(obj)
     if file_path is not None:
         file_path.write_text(content, encoding="utf-8")
         return None
