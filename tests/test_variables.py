@@ -14,6 +14,7 @@ from radium226.variables import (
     VariableType,
     execute_with_variables,
     set_variable,
+    merge_variables,
     app,
     dump_variables,
     Backend,
@@ -339,3 +340,136 @@ def test_cli_check_command_fails_when_not_encrypted() -> None:
         assert result.exit_code != 0, f"Command should have failed but passed: {result.output}"
         assert "SECRET_VAR" in result.output
         assert "not encrypted" in result.output
+
+
+def test_merge_variables_with_none() -> None:
+    """Test that merge_variables returns base when override is None."""
+    base = Variables([
+        Variable(name="FOO", value="foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT)
+    ])
+
+    result = merge_variables(base, None)
+
+    assert len(result) == 1
+    assert result.by_name("FOO") is not None
+    assert result.by_name("FOO").value == "foo"  # type: ignore
+
+
+def test_merge_variables_override_replaces() -> None:
+    """Test that merge_variables replaces variables with the same name."""
+    base = Variables([
+        Variable(name="FOO", value="base_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        Variable(name="BAR", value="base_bar", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+    ])
+    override = Variables([
+        Variable(name="FOO", value="override_foo", visibility=VariableVisibility.SECRET, type=VariableType.FILE),
+    ])
+
+    result = merge_variables(base, override)
+
+    assert len(result) == 2
+    foo_var = result.by_name("FOO")
+    assert foo_var is not None
+    assert foo_var.value == "override_foo"
+    assert foo_var.visibility == VariableVisibility.SECRET
+    assert foo_var.type == VariableType.FILE
+
+    bar_var = result.by_name("BAR")
+    assert bar_var is not None
+    assert bar_var.value == "base_bar"
+
+
+def test_merge_variables_adds_new() -> None:
+    """Test that merge_variables adds variables only in override."""
+    base = Variables([
+        Variable(name="FOO", value="foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+    ])
+    override = Variables([
+        Variable(name="BAZ", value="baz", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+    ])
+
+    result = merge_variables(base, override)
+
+    assert len(result) == 2
+    assert result.by_name("FOO") is not None
+    assert result.by_name("BAZ") is not None
+
+
+def test_load_variables_with_override() -> None:
+    """Test that load_variables loads override file when it exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        base_file = tmpdir_path / "variables.yaml"
+        override_file = tmpdir_path / "variables.local.yaml"
+
+        # Create base file
+        base_vars = Variables([
+            Variable(name="FOO", value="base_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+            Variable(name="BAR", value="base_bar", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(base_vars, base_file)
+
+        # Create override file
+        override_vars = Variables([
+            Variable(name="FOO", value="override_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(override_vars, override_file)
+
+        # Load with override (default)
+        result = load_variables(base_file)
+
+        assert len(result) == 2
+        assert result.by_name("FOO").value == "override_foo"  # type: ignore
+        assert result.by_name("BAR").value == "base_bar"  # type: ignore
+
+
+def test_load_variables_no_override() -> None:
+    """Test that load_variables ignores override file when no_override=True."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        base_file = tmpdir_path / "variables.yaml"
+        override_file = tmpdir_path / "variables.local.yaml"
+
+        # Create base file
+        base_vars = Variables([
+            Variable(name="FOO", value="base_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(base_vars, base_file)
+
+        # Create override file
+        override_vars = Variables([
+            Variable(name="FOO", value="override_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(override_vars, override_file)
+
+        # Load with no_override=True
+        result = load_variables(base_file, no_override=True)
+
+        assert len(result) == 1
+        assert result.by_name("FOO").value == "base_foo"  # type: ignore
+
+
+def test_load_variables_custom_override_suffix() -> None:
+    """Test that load_variables uses custom override suffix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        base_file = tmpdir_path / "variables.yaml"
+        override_file = tmpdir_path / "variables.dev.yaml"
+
+        # Create base file
+        base_vars = Variables([
+            Variable(name="FOO", value="base_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(base_vars, base_file)
+
+        # Create override file with custom suffix
+        override_vars = Variables([
+            Variable(name="FOO", value="dev_foo", visibility=VariableVisibility.PLAIN, type=VariableType.TEXT),
+        ])
+        dump_variables(override_vars, override_file)
+
+        # Load with custom override suffix
+        result = load_variables(base_file, no_override=False, override_suffix="dev")
+
+        assert len(result) == 1
+        assert result.by_name("FOO").value == "dev_foo"  # type: ignore

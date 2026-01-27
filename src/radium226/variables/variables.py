@@ -9,7 +9,6 @@ from contextlib import ExitStack
 from io import StringIO
 from jinja2 import Environment
 from jinja2.meta import find_undeclared_variables
-from base64 import b64encode
 from textwrap import dedent
 
 from .types import (
@@ -32,20 +31,55 @@ ENCRYPTION_PREFIX = "encrypted:"
 
 
 
+def merge_variables(base: Variables, override: Variables | None) -> Variables:
+    """
+    Merge two Variables objects, with override taking precedence over base.
+
+    Variables from override replace variables with the same name in base.
+    Variables only in base are kept. Variables only in override are added.
+    If override is None, returns base unchanged.
+    """
+    if override is None:
+        return base
+
+    result: list[Variable] = []
+    override_names = {v.name for v in override}
+
+    # Keep base variables that are not overridden
+    for variable in base:
+        if variable.name not in override_names:
+            result.append(variable)
+
+    # Add all override variables
+    result.extend(override)
+
+    return Variables(result)
+
+
 @overload
 def load_variables(file_path: Path, /) -> Variables: ...
-
 
 
 @overload
 def load_variables(text: str, /) -> Variables: ...
 
 
+@overload
+def load_variables(file_path: Path, /, *, no_override: bool = False, override_suffix: str = "local") -> Variables: ...
 
-def load_variables(text_or_file_path: Path | str, /) -> Variables:
+
+def load_variables(
+    text_or_file_path: Path | str,
+    /,
+    *,
+    no_override: bool = False,
+    override_suffix: str = "local",
+) -> Variables:
     if isinstance(text_or_file_path, Path):
-        text = text_or_file_path.read_text(encoding="utf-8")
+        file_path = text_or_file_path
+        text = file_path.read_text(encoding="utf-8")
     else:
+        file_path = None
         text = text_or_file_path
 
     obj = yaml.safe_load(text)
@@ -67,7 +101,17 @@ def load_variables(text_or_file_path: Path | str, /) -> Variables:
             else:
                 logger.warning(f"Variable {variable_name!r} has empty value. Skipping variable.")
 
-    return Variables(yield_variables())
+    variables = Variables(yield_variables())
+
+    if not no_override and file_path is not None:
+        # Build override file path: XXXX.yaml -> XXXX.local.yaml
+        override_file_path = file_path.with_suffix(f".{override_suffix}{file_path.suffix}")
+        if override_file_path.exists():
+            logger.debug(f"Loading override file {override_file_path}")
+            override_variables = load_variables(override_file_path)
+            variables = merge_variables(variables, override_variables)
+
+    return variables
 
 
 

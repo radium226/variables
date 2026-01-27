@@ -18,6 +18,7 @@ from .variables import (
     decrypt_variables,
     execute_with_variables,
     set_variable,
+    merge_variables,
 )
 
 from .spi import Backend
@@ -41,5 +42,6 @@ __all__ = [
     "decrypt_variables",
     "execute_with_variables",
     "set_variable",
+    "merge_variables",
     "Backend",
 ]

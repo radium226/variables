@@ -66,24 +66,28 @@ def app(
 
 
 @app.command()
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("file_path", type=Path, required=True)
 @pass_context
-def encrypt(context: Context, file_path: Path) -> None:
+def encrypt(context: Context, file_path: Path, override_suffix: str, no_override: bool) -> None:
     backend = cast(Backend, context.obj.backend)
 
-    variables = load_variables(file_path)
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
     variables = encrypt_variables(backend, variables)
     dump_variables(variables, file_path)
 
 
 
 @app.command()
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("file_path", type=Path, required=True)
 @pass_context
-def decrypt(context: Context, file_path: Path) -> None:
+def decrypt(context: Context, file_path: Path, override_suffix: str, no_override: bool) -> None:
     backend = cast(Backend, context.obj.backend)
-    
-    variables = load_variables(file_path)
+
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
     variables = decrypt_variables(backend, variables)
     dump_variables(variables, file_path)
 
@@ -105,6 +109,8 @@ def decrypt(context: Context, file_path: Path) -> None:
     is_flag=True,
     default=False,
 )
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument(
     "command",
     type=UNPROCESSED,
@@ -114,23 +120,25 @@ def decrypt(context: Context, file_path: Path) -> None:
 )
 @pass_context
 def exec(
-    context: Context, 
-    command: Command, 
+    context: Context,
+    command: Command,
     optional_prefixes_and_file_paths: list[OptionalPrefixAndFilePath],
     auto_prefixes: bool,
+    override_suffix: str,
+    no_override: bool,
 ) -> None:
     backend = cast(Backend, context.obj.backend)
-    
+
     def yield_variables() -> Generator[Variable, None, None]:
         for optional_prefix, file_path in optional_prefixes_and_file_paths:
             if optional_prefix is None and auto_prefixes:
                 optional_prefix = file_path.stem.upper()
-                
-            variables = load_variables(file_path)
-            variables = variables.with_prefix(prefix) if ( prefix := optional_prefix ) is not None else variables
+
+            variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
+            variables = variables.with_prefix(prefix) if (prefix := optional_prefix) is not None else variables
             variables = decrypt_variables(backend, variables)
             yield from variables
-    
+
     variables = Variables(yield_variables())
 
     execute_with_variables(command, variables)
@@ -153,12 +161,14 @@ def exec(
     type=KEY_VALUE,
     callback=to_dict,
 )
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("file_path", type=Path, required=True)
 @pass_context
-def export(context: Context, file_path: Path, target: ExportTarget, config: dict[str, str]) -> None:
+def export(context: Context, file_path: Path, target: ExportTarget, config: dict[str, str], override_suffix: str, no_override: bool) -> None:
     backend = cast(Backend, context.obj.backend)
 
-    variables = load_variables(file_path)
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
     variables = decrypt_variables(backend, variables)
     output = export_variables(variables, target, config)
     print(output)
@@ -183,6 +193,8 @@ def export(context: Context, file_path: Path, target: ExportTarget, config: dict
     type=VariableType,
     required=False,
 )
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("variable_name", type=str, required=True)
 @argument("variable_value", type=str, required=True)
 @pass_context
@@ -193,6 +205,8 @@ def set(
     variable_value: str,
     visibility: VariableVisibility | None,
     variable_type: VariableType | None,
+    override_suffix: str,
+    no_override: bool,
 ) -> None:
     backend = cast(Backend, context.obj.backend)
     # Read from stdin if value is "-"
@@ -200,7 +214,7 @@ def set(
         variable_value = sys.stdin.read()
 
     # Load existing variables
-    variables = load_variables(file_path)
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
 
     # Set the variable
     variables = set_variable(
@@ -240,6 +254,8 @@ def set(
     callback=to_dict,
     help="Destination backend configuration (key=value)",
 )
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("file_path", type=Path, required=True)
 @pass_context
 def migrate(
@@ -247,6 +263,8 @@ def migrate(
     file_path: Path,
     to_backend_name: str,
     to_backend_config: dict[str, str],
+    override_suffix: str,
+    no_override: bool,
 ) -> None:
     from_backend = cast(Backend, context.obj.backend)
 
@@ -255,7 +273,7 @@ def migrate(
     assert to_factory is not None, f"Destination backend '{to_backend_name}' not found. Available backends: {[f.name for f in factories]}"
     to_config = to_factory.parse_config(to_backend_config)
 
-    variables = load_variables(file_path)
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
     variables = decrypt_variables(from_backend, variables)
 
     with to_factory.create_backend(to_config) as to_backend:
@@ -265,12 +283,14 @@ def migrate(
 
 
 @app.command()
+@option("--override-suffix", "-s", "override_suffix", type=str, default="local")
+@option("--no-override", "no_override", is_flag=True, default=False)
 @argument("file_path", type=Path, required=True)
 @pass_context
-def check(context: Context, file_path: Path) -> None:
+def check(context: Context, file_path: Path, override_suffix: str, no_override: bool) -> None:
     backend = cast(Backend, context.obj.backend)
 
-    variables = load_variables(file_path)
+    variables = load_variables(file_path, no_override=no_override, override_suffix=override_suffix)
     try:
         decrypt_variables(backend, variables, raise_when_not_encrypted=True)
     except VariableNotEncryptedError as e:
