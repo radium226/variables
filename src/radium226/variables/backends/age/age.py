@@ -36,7 +36,7 @@ class Age():
                 "-"
             ]
             process = run(command, input=decrypted_value, capture_output=True)
-            print(process.stderr, file=sys.stderr)
+            sys.stderr.buffer.write(process.stderr)
             return process.stdout
         
         if isinstance(passphrase := self.config, str):
@@ -83,7 +83,7 @@ class Age():
                     "-"
                 ]
                 process = run(command, input=encrypted_value, capture_output=True)
-                print(process.stderr, file=sys.stderr)
+                sys.stderr.buffer.write(process.stderr)
                 return process.stdout
             
         if isinstance(passphrase := self.config, str):
