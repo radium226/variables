@@ -56,7 +56,7 @@ def find_key_pair() -> KeyPair | None:
             return load_key_pair(key_pair_file_path)
         
         if ( folder_path / ".git" ).exists():
-            logger.warning("Reached the git root folder without finding a 'variables.key' file.")
+            logger.debug("Reached the git root folder without finding a 'variables.key' file.")
             break
 
         folder_path = folder_path.parent
